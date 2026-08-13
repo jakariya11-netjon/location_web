@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Trusted Video Share</title>
+  <style>
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif;
+      background: #f3f6fb;
+      color: #172033
+    }
+
+    .wrap {
+      width: min(92%, 560px);
+      margin: 30px auto
+    }
+
+    .card {
+      background: #fff;
+      padding: 24px;
+      border-radius: 18px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .1);
+      margin-bottom: 18px
+    }
+
+    h1,
+    h2 {
+      margin-top: 0
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #d5dbe5;
+      border-radius: 10px;
+      font-size: 16px;
+      margin-bottom: 12px
+    }
+
+    button {
+      width: 100%;
+      padding: 13px;
+      border: 0;
+      border-radius: 10px;
+      background: #1769e0;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 7px;
+      transition: background .2s
+    }
+
+    button:hover {
+      background: #1252b3
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed
+    }
+
+    .secondary {
+      background: #333
+    }
+
+    .secondary:hover {
+      background: #222
+    }
+
+    .small {
+      font-size: 14px;
+      color: #5f6878;
+      line-height: 1.5
+    }
+
+    .notice {
+      background: #eef6ff;
+      border-left: 4px solid #1769e0;
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 16px
+    }
+
+    .result {
+      background: #edf9f0;
+      padding: 14px;
+      border-radius: 12px;
+      margin-top: 14px;
+      word-break: break-word
+    }
+
+    .item {
+      background: #f7f8fa;
+      padding: 14px;
+      border-radius: 12px;
+      margin-top: 10px;
+      border: 1px solid #e1e4e8
+    }
+
+    a {
+      color: #1769e0;
+      word-break: break-all
+    }
+
+    .hidden {
+      display: none
+    }
+
+    .status {
+      margin-top: 12px;
+      min-height: 20px;
+      font-weight: 500
+    }
+
+    .error-msg {
+      color: #a51d2d
+    }
+
+    .success-msg {
+      color: #1b7e36
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- CREATOR VIEW -->
+    <section id="creator" class="card">
+      <h1>🎬 Trusted Video Share</h1>
+      <p class="small">Create a consent-based location-sharing link for a trusted person.</p>
+
+      <label for="videoUrl">YouTube / Instagram Video URL</label>
+      <input id="videoUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+
+      <button id="generate">Generate Share Link</button>
+      <div id="creatorStatus" class="status small"></div>
+
+      <div id="generated" class="result hidden">
+        <strong>Share Link Generated:</strong>
+        <p id="shareLink" style="font-weight:bold;margin:8px 0"></p>
+        <button id="copy" class="secondary">Copy Link</button>
+      </div>
+
+      <h2 style="margin-top:28px">📍 Received Locations</h2>
+      <div id="locations">
+        <p class="small">No location received yet.</p>
+      </div>
+    </section>
+
+    <!-- TRUSTED PERSON VIEW -->
+    <section id="trusted" class="card hidden">
+      <h1>Continue to Video</h1>
+
+      <div class="notice">
+        <strong style="color:#1769e0;display:block;margin-bottom:4px">Location Sharing Notice</strong>
+        <p class="small" style="margin:0">
+          By clicking <strong>“Allow Location & Continue”</strong>, your device will prompt you for GPS permission. If
+          allowed, your exact current location (latitude, longitude, accuracy, and timestamp) will be recorded and
+          shared directly with the person who created this link before redirecting you to the destination video.
+        </p>
+      </div>
+
+      <button id="allow">Allow Location & Continue</button>
+      <div id="trustedStatus" class="status small"></div>
+    </section>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getDatabase, ref, set, push, get, onValue
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    /* ================= FIREBASE CONFIGURATION ================= */
+    const firebaseConfig = {
+      apiKey: "AIzaSyACBBQt47ccBEPuvsDnmQM1JGvhI9w7uaU",
+      authDomain: "project-fa217679-f9c7-4383-87b.firebaseapp.com",
+      databaseURL: "https://project-fa217679-f9c7-4383-87b-default-rtdb.firebaseio.com",
+      projectId: "project-fa217679-f9c7-4383-87b",
+      storageBucket: "project-fa217679-f9c7-4383-87b.firebasestorage.app",
+      messagingSenderId: "102609897998",
+      appId: "1:102609897998:web:87b2ce38b92fcbb71a11cf",
+      measurementId: "G-h5CG9HXKT4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const $ = id => document.getElementById(id);
+    const params = new URLSearchParams(window.location.search);
+    const shareId = params.get("share");
+
+    const creator = $("creator");
+    const trusted = $("trusted");
+
+    function randomId() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+      let s = "";
+      for (let i = 0; i < 12; i++) {
+        s += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return s;
+    }
+
+    function validVideoUrl(value) {
+      try {
+        const u = new URL(value);
+        return u.protocol === "https:" &&
+          /(^|\.)youtube\.com$|(^|\.)youtu\.be$|(^|\.)instagram\.com$/i.test(u.hostname);
+      } catch {
+        return false;
+      }
+    }
+
+    /* ================= CREATOR MODE ================= */
+    if (!shareId) {
+      $("generate").addEventListener("click", async () => {
+        const videoUrl = $("videoUrl").value.trim();
+
+        if (!validVideoUrl(videoUrl)) {
+          $("creatorStatus").className = "status small error-msg";
+          $("creatorStatus").textContent = "Please enter a valid HTTPS YouTube or Instagram URL.";
+          return;
+        }
+
+        $("generate").disabled = true;
+        $("creatorStatus").className = "status small";
+        $("creatorStatus").textContent = "Creating link...";
+
+        const id = randomId();
+
+        try {
+          await set(ref(db, "shares/" + id), {
+            videoUrl: videoUrl,
+            createdAt: Date.now(),
+            status: "waiting"
+          });
+
+          const link = window.location.origin + window.location.pathname + "?share=" + encodeURIComponent(id);
+
+          $("shareLink").textContent = link;
+          $("generated").classList.remove("hidden");
+          $("creatorStatus").className = "status small success-msg";
+          $("creatorStatus").textContent = "Share link created successfully!";
+          watchLocations(id);
+        } catch (e) {
+          console.error(e);
+          $("creatorStatus").className = "status small error-msg";
+          $("creatorStatus").textContent = "Could not create the link. Check Firebase config or security rules.";
+        } finally {
+          $("generate").disabled = false;
+        }
+      });
+
+      $("copy").addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText($("shareLink").textContent);
+          $("copy").textContent = "Copied ✓";
+          setTimeout(() => $("copy").textContent = "Copy Link", 1500);
+        } catch {
+          $("creatorStatus").className = "status small error-msg";
+          $("creatorStatus").textContent = "Copy failed. Please select and copy the link manually.";
+        }
+      });
+
+      function watchLocations(id) {
+        onValue(ref(db, "locations/" + id), snap => {
+          const root = $("locations");
+          root.innerHTML = "";
+
+          if (!snap.exists()) {
+            root.innerHTML = '<p class="small">No location received yet. Awaiting trusted person consent...</p>';
+            return;
+          }
+
+          const entries = Object.values(snap.val()).reverse();
+
+          for (const loc of entries) {
+            const box = document.createElement("div");
+            box.className = "item";
+
+            const time = new Date(loc.timestamp).toLocaleString();
+            const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(loc.latitude + ',' + loc.longitude)}`;
+
+            box.innerHTML = `
+          <strong style="color:#1769e0">📍 Location Received</strong>
+          <p class="small" style="margin:8px 0">
+            <strong>Latitude:</strong> ${Number(loc.latitude).toFixed(6)}<br>
+            <strong>Longitude:</strong> ${Number(loc.longitude).toFixed(6)}<br>
+            <strong>Accuracy:</strong> ~${Math.round(Number(loc.accuracy))} meters<br>
+            <strong>Time:</strong> ${time}
+          </p>
+          <a href="${mapUrl}" target="_blank" rel="noopener">View on Google Maps ↗</a>
+        `;
+            root.appendChild(box);
+          }
+        });
+      }
+    }
+
+    /* ================= TRUSTED PERSON MODE ================= */
+    if (shareId) {
+      creator.classList.add("hidden");
+      trusted.classList.remove("hidden");
+
+      let shareData = null;
+
+      async function loadShare() {
+        try {
+          const snap = await get(ref(db, "shares/" + shareId));
+
+          if (!snap.exists()) {
+            $("trustedStatus").className = "status small error-msg";
+            $("trustedStatus").textContent = "This share link is invalid or expired.";
+            $("allow").disabled = true;
+            return;
+          }
+
+          shareData = snap.val();
+          $("trustedStatus").className = "status small";
+          $("trustedStatus").textContent = "Ready. Click the button above to request location access.";
+        } catch (e) {
+          console.error(e);
+          $("trustedStatus").className = "status small error-msg";
+          $("trustedStatus").textContent = "Could not load link details. Please check your network connection.";
+          $("allow").disabled = true;
+        }
+      }
+
+      loadShare();
+
+      $("allow").addEventListener("click", () => {
+        if (!shareData) return;
+
+        if (!navigator.geolocation) {
+          $("trustedStatus").className = "status small error-msg";
+          $("trustedStatus").textContent = "Geolocation is not supported by your browser.";
+          return;
+        }
+
+        $("allow").disabled = true;
+        $("trustedStatus").className = "status small";
+        $("trustedStatus").textContent = "Please confirm the location permission prompt in your browser...";
+
+        navigator.geolocation.getCurrentPosition(
+          async position => {
+            const loc = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              timestamp: Date.now()
+            };
+
+            try {
+              $("trustedStatus").textContent = "Saving location and preparing redirect...";
+
+              const locRef = push(ref(db, "locations/" + shareId));
+              await set(locRef, loc);
+              await set(ref(db, "shares/" + shareId + "/status"), "location_received");
+
+              $("trustedStatus").className = "status small success-msg";
+              $("trustedStatus").textContent = "Location verified. Redirecting to video now...";
+
+              setTimeout(() => {
+                window.location.href = shareData.videoUrl;
+              }, 800);
+            } catch (e) {
+              console.error(e);
+              $("trustedStatus").className = "status small error-msg";
+              $("trustedStatus").textContent = "Failed to save location data to Firebase. Please try again.";
+              $("allow").disabled = false;
+            }
+          },
+          error => {
+            $("allow").disabled = false;
+            $("trustedStatus").className = "status small error-msg";
+
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                $("trustedStatus").textContent = "Location permission was denied. The video cannot be opened.";
+                break;
+              case error.POSITION_UNAVAILABLE:
+                $("trustedStatus").textContent = "Location information is unavailable. Please check your device GPS settings and try again.";
+                break;
+              case error.TIMEOUT:
+                $("trustedStatus").textContent = "Location request timed out. Please try clicking the button again.";
+                break;
+              default:
+                $("trustedStatus").textContent = "An unknown error occurred while retrieving location.";
+                break;
+            }
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+          }
+        );
+      });
+    }
+  </script>
+</body>
+
+</html>
